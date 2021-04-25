@@ -1,0 +1,26 @@
+{
+  "name": "renttoken",
+  "version": "1.0.0",
+  "main": "truffle-config.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "build": "npx truffle compile",
+    "test": "mocha --exit --recursive --timeout 10000",
+    "migrate": "npx truffle migrate --reset",
+    "develop": "npx truffle develop"
+  },
+  "author": "",
+  "license": "ISC",
+  "keywords": [],
+  "description": "",
+  "devDependencies": {
+    "@openzeppelin/contracts": "^4.0.0",
+    "@openzeppelin/test-environment": "^0.1.9",
+    "@openzeppelin/test-helpers": "^0.5.10",
+    "chai": "^4.3.3",
+    "mocha": "^8.3.1",
+    "truffle": "^5.2.6"
+  }
+}

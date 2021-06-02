@@ -19,7 +19,7 @@ describe('RentToken', async () => {
 
     houseNft = await HouseNft.new();
 
-    await houseNft.faucet(houseOwnerAddress, 1);
+    await houseNft.faucet(houseOwnerAddress, 1, "Some House");
 
     rentToken = await RentToken.new(1, houseNft.address, renterAddress, 100 * 10**6, usdcMock.address, { from: houseOwnerAddress });
 
@@ -31,7 +31,7 @@ describe('RentToken', async () => {
   });
 
   it('should return the correct id', async () => {
-    expect(await rentToken.getId()).to.be.bignumber.equal(new BN(1));
+    expect(await rentToken.getHouseNftId()).to.be.bignumber.equal(new BN(1));
   });
 
   it('should return the HouseNft address', async () => {
@@ -116,7 +116,17 @@ describe('RentToken', async () => {
     expect(await rentToken.showUnclaimed({ from: houseOwnerAddress })).to.be.bignumber.equal(new BN(100 * 10**6));
     expect(await rentToken.showUnclaimed({ from: otherAddress })).to.be.bignumber.equal(new BN(0));
 
-    await rentToken.claim({ from: houseOwnerAddress });
+    const receipt2 = await rentToken.claim({ from: houseOwnerAddress });
+
+    expectEvent(
+      receipt2, 
+      'RentClaimed', 
+      {
+        claimer: houseOwnerAddress,
+        amount: new BN(100 * 10**6),
+      }
+    );
+
     expect(await usdcMock.balanceOf(rentToken.address)).to.be.bignumber.equal(new BN(0));
     expect(await usdcMock.balanceOf(houseOwnerAddress)).to.be.bignumber.equal(new BN(100 * 10**6));
     expect(await rentToken.showUnclaimed({ from: houseOwnerAddress })).to.be.bignumber.equal(new BN(0));
@@ -152,7 +162,16 @@ describe('RentToken', async () => {
     expect(await rentToken.showUnclaimed({ from: houseOwnerAddress })).to.be.bignumber.equal(new BN(99 * 10**6));
     expect(await rentToken.showUnclaimed({ from: otherAddress })).to.be.bignumber.equal(new BN(1 * 10**6));
 
-    await rentToken.claim({ from: houseOwnerAddress });
+    const receipt2 = await rentToken.claim({ from: houseOwnerAddress });
+
+    expectEvent(
+      receipt2, 
+      'RentClaimed', 
+      {
+        claimer: houseOwnerAddress,
+        amount: new BN(99 * 10**6),
+      }
+    );
     expect(await usdcMock.balanceOf(rentToken.address)).to.be.bignumber.equal(new BN(1 * 10**6));
     expect(await usdcMock.balanceOf(houseOwnerAddress)).to.be.bignumber.equal(new BN(99 * 10**6));
     expect(await rentToken.showUnclaimed({ from: houseOwnerAddress })).to.be.bignumber.equal(new BN(0));
@@ -190,7 +209,18 @@ describe('RentToken', async () => {
     expect(await rentToken.showUnclaimed({ from: houseOwnerAddress })).to.be.bignumber.equal(new BN(100 * 10**6));
     expect(await rentToken.showUnclaimed({ from: otherAddress })).to.be.bignumber.equal(new BN(0));
 
-    await rentToken.claim({ from: houseOwnerAddress });
+    const receipt2 = await rentToken.claim({ from: houseOwnerAddress });
+
+    expectEvent(
+      receipt2, 
+      'RentClaimed', 
+      {
+        claimer: houseOwnerAddress,
+        amount: new BN(100 * 10**6),
+      }
+    );
+    await expectRevert(rentToken.claim({ from: otherAddress }), "No unclaimed rent");
+
     expect(await usdcMock.balanceOf(rentToken.address)).to.be.bignumber.equal(new BN(0));
     expect(await usdcMock.balanceOf(houseOwnerAddress)).to.be.bignumber.equal(new BN(100 * 10**6));
     expect(await rentToken.showUnclaimed({ from: houseOwnerAddress })).to.be.bignumber.equal(new BN(0));

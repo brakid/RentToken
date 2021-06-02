@@ -10,7 +10,7 @@ import "./Owned.sol";
 
 contract RentToken is ERC20, ERC721Holder, Owned {
   bool private isInitialized = false;
-  uint256 private immutable id;
+  uint256 private immutable houseNftId;
   IERC721 private houseNft;
 
   address private immutable renter;
@@ -31,17 +31,23 @@ contract RentToken is ERC20, ERC721Holder, Owned {
     uint256 nextDueTimestamp
   );
 
-  constructor(uint256 _id, address _houseNftAddress, address _renter, uint256 _rentAmount, address _usdcAddress) ERC20("RentToken", "RNT") {
-    id = _id;
+  event RentClaimed(
+    uint256 timestamp,
+    address indexed claimer,
+    uint256 amount
+  );
+
+  constructor(uint256 _houseNftId, address _houseNftAddress, address _renter, uint256 _rentAmount, address _usdcAddress) ERC20("RentToken", "RNT") {
+    houseNftId = _houseNftId;
     renter = _renter;
     rentAmount = _rentAmount;
     houseNft = IERC721(_houseNftAddress);
     usdc = IERC20(_usdcAddress);
   }
 
-  function initialize() public onlyAdmin {
+  function initialize() external onlyAdmin {
     require(!isInitialized, "Already initialized");
-    houseNft.safeTransferFrom(msg.sender, address(this), id);
+    houseNft.safeTransferFrom(msg.sender, address(this), houseNftId);
     dueTimestamp = block.timestamp + 30 days;
     _mint(msg.sender, 100);
     isInitialized = true;
@@ -51,19 +57,19 @@ contract RentToken is ERC20, ERC721Holder, Owned {
     return 0;
   }
 
-  function getId() public view returns (uint256) {
-    return id;
+  function getHouseNftId() external view returns (uint256) {
+    return houseNftId;
   }
 
-  function getHouseNftAddress() public view returns (address) {
+  function getHouseNftAddress() external view returns (address) {
     return address(houseNft);
   }
 
-  function getRenter() public view returns (address) {
+  function getRenter() external view returns (address) {
     return renter;
   }
 
-  function getRentDueTimestamp() public view returns (uint256) {
+  function getRentDueTimestamp() external view returns (uint256) {
     require(isInitialized, "Not initialized");
     return dueTimestamp;
   }
@@ -79,11 +85,11 @@ contract RentToken is ERC20, ERC721Holder, Owned {
     return rentDue;
   }
 
-  function getUsdcAddress() public view returns (address) {
+  function getUsdcAddress() external view returns (address) {
     return address(usdc);
   }
 
-  function pay() public {
+  function pay() external {
     require(isInitialized, "Not initialized");
     require(msg.sender == renter, "Renter only is allowed to call");
     uint256 rentDue = getRentAmountDue();
@@ -107,15 +113,17 @@ contract RentToken is ERC20, ERC721Holder, Owned {
     emit RentPaid(block.timestamp, renter, rentDue, dueTimestamp);
   }
 
-  function claim() public {
+  function claim() external {
     require(isInitialized, "Not initialized");
     require(unclaimedBalances[msg.sender] > 0, "No unclaimed rent");
     uint256 claimAmount = unclaimedBalances[msg.sender];
     unclaimedBalances[msg.sender] = 0;
     usdc.transfer(msg.sender, claimAmount);
+
+    emit RentClaimed(block.timestamp, msg.sender, claimAmount);
   }
 
-  function showUnclaimed() public view returns (uint256) {
+  function showUnclaimed() external view returns (uint256) {
     require(isInitialized, "Not initialized");
     return unclaimedBalances[msg.sender];
   }

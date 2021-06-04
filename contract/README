@@ -1,3 +1,9 @@
-## Potential attack vectors:
-* one of the casino paths running out of gas?: Difference in cost for transferFrom and transfer? If transferFrom > transfer then a player could set gas amount to what is required to go on the winning streak and cause out of gas for the other path thus never loosing
-* should not be an issue as running out of gas will keep the transaction cost from the player.
+# Tokenomics:
+* the owner of the house creates an NFT to represent the object
+* the owner locks the **HouseNft** in the RentToken contract and receives 100 **RentTokens**
+* the owner sells the RentTokens = shares in the house
+* the house is rented out to someone else, they have to pay rent (in USDC) every month
+* the rent is sent to the RentToken contract. It splits the received rent according the the amounts of RentTokens held by the owners.
+* the owners can claim the paid rent
+* paying rent after the due date incurs a fee of 5 USDC per day
+* RentTokens can be traded, previously unclaimed paid rent remains untouched by that

@@ -8,6 +8,11 @@ import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "./Owned.sol";
 
+struct Entry {
+  bool exists;
+  uint index;
+}
+
 contract RentToken is ERC20, ERC721Holder, Owned {
   bool private isInitialized = false;
   uint256 private immutable houseNftId;
@@ -19,6 +24,7 @@ contract RentToken is ERC20, ERC721Holder, Owned {
 
   uint256 private dueTimestamp;
   address[] private holders;
+  mapping(address => Entry) holdersMap;
   mapping(address => uint256) private unclaimedBalances;
 
   uint256 constant FEE_PER_DUE_DAY = 5 * 10**6; // 5 USDC per day
@@ -131,34 +137,37 @@ contract RentToken is ERC20, ERC721Holder, Owned {
   function _beforeTokenTransfer(address from, address to, uint256 amount) internal override {
     if (balanceOf(from) == amount && from != address(0)) {
       // not minting and sender has no balance left afterwards
-      (bool foundFrom, uint256 index) = findIndex(from);
-      require(foundFrom, "Expecting holder to be present");
-      deleteIndex(index);
+      bool foundTo = holdersMap[from].exists;
+      require(foundTo, "Expecting holder to be present");
+
+      deleteHolder(from);
     }
 
     if (to != address(0)) {
       // not burning
-      (bool foundTo, ) = findIndex(to);
+      bool foundTo = holdersMap[to].exists;
       if (!foundTo) {
-        holders.push(to);
+        insertHolder(to);
       }
     }
   }
 
-  function findIndex(address holder) internal view returns (bool, uint256) {
-    for (uint256 index = 0; index < holders.length; index++) {
-      if (holder == holders[index]) {
-        return (true, index);
-      }
-    }
-    return (false, 0);
+  function insertHolder(address holder) internal {
+    holders.push(holder);
+    holdersMap[holder].exists = true;
+    holdersMap[holder].index = holders.length - 1;
   }
 
-  function deleteIndex(uint256 index) internal {
-    if (index != holders.length - 1) {
+  function deleteHolder(address holderToDelete) internal {
+    uint indexToDelete = holdersMap[holderToDelete].index;  
+
+    if (indexToDelete != holders.length - 1) {
       address lastHolder = holders[holders.length - 1];
-      holders[index] = lastHolder;
+      require(lastHolder != address(0), "Expecting holder not to be the null address");
+      holders[indexToDelete] = lastHolder;
+      holdersMap[lastHolder].index = indexToDelete;
     }
     holders.pop();
+    delete holdersMap[holderToDelete];
   }
 }

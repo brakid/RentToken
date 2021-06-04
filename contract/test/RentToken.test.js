@@ -1,5 +1,5 @@
 const { accounts, contract } = require('@openzeppelin/test-environment');
-const [ houseOwnerAddress, renterAddress, otherAddress, _ ] = accounts;
+const [ houseOwnerAddress, renterAddress, otherAddress, anotherAddress, _ ] = accounts;
 const { BN, expectEvent, constants, expectRevert, time } = require('@openzeppelin/test-helpers');
 
 const { expect } = require('chai');
@@ -302,5 +302,67 @@ describe('RentToken', async () => {
     expect(await usdcMock.balanceOf(rentToken.address)).to.be.bignumber.equal(new BN(200 * 10**6));
     expect(await rentToken.showUnclaimed({ from: houseOwnerAddress })).to.be.bignumber.equal(new BN(100 * 10**6));
     expect(await rentToken.showUnclaimed({ from: otherAddress })).to.be.bignumber.equal(new BN(100 * 10**6));
+  });
+
+  it('should pay the rent (change owner in between 2)', async () => {
+    await rentToken.initialize({ from: houseOwnerAddress });
+    expect(await rentToken.showUnclaimed({ from: houseOwnerAddress })).to.be.bignumber.equal(new BN(0));
+    expect(await rentToken.showUnclaimed({ from: otherAddress })).to.be.bignumber.equal(new BN(0));
+    expect(await rentToken.showUnclaimed({ from: anotherAddress })).to.be.bignumber.equal(new BN(0));
+
+    await rentToken.transfer(otherAddress, 33, { from: houseOwnerAddress });
+    await rentToken.transfer(anotherAddress, 33, { from: houseOwnerAddress });
+    
+    expect(await rentToken.balanceOf(houseOwnerAddress)).to.be.bignumber.equal(new BN(34));
+    expect(await rentToken.balanceOf(otherAddress)).to.be.bignumber.equal(new BN(33));
+    expect(await rentToken.balanceOf(anotherAddress)).to.be.bignumber.equal(new BN(33));
+
+    const oldRentDueTimestamp = await rentToken.getRentDueTimestamp();
+
+    expect(await usdcMock.balanceOf(rentToken.address)).to.be.bignumber.equal(new BN(0));
+
+    await usdcMock.faucet(renterAddress, 200 * 100**6);
+    await usdcMock.increaseAllowance(rentToken.address, 200 * 10**6, { from: renterAddress });
+
+    const receipt = await rentToken.pay({ from: renterAddress });
+    
+    expectEvent(
+      receipt, 
+      'RentPaid', 
+      {
+        renter: renterAddress,
+        rentAmountPaid: new BN(100 * 10**6),
+      }
+    );
+    
+    expect(await rentToken.getRentDueTimestamp()).to.be.bignumber.greaterThan(oldRentDueTimestamp);
+    expect(await usdcMock.balanceOf(rentToken.address)).to.be.bignumber.equal(new BN(100 * 10**6));
+    expect(await rentToken.showUnclaimed({ from: houseOwnerAddress })).to.be.bignumber.equal(new BN(34 * 10**6));
+    expect(await rentToken.showUnclaimed({ from: otherAddress })).to.be.bignumber.equal(new BN(33 * 10**6));
+    expect(await rentToken.showUnclaimed({ from: otherAddress })).to.be.bignumber.equal(new BN(33 * 10**6));
+
+    await rentToken.transfer(otherAddress, 33, { from: houseOwnerAddress });
+    await rentToken.transfer(anotherAddress, 1, { from: houseOwnerAddress });
+
+    expect(await rentToken.balanceOf(houseOwnerAddress)).to.be.bignumber.equal(new BN(0));
+    expect(await rentToken.balanceOf(otherAddress)).to.be.bignumber.equal(new BN(66));
+    expect(await rentToken.balanceOf(anotherAddress)).to.be.bignumber.equal(new BN(34));
+
+    const receipt2 = await rentToken.pay({ from: renterAddress });
+    
+    expectEvent(
+      receipt2, 
+      'RentPaid', 
+      {
+        renter: renterAddress,
+        rentAmountPaid: new BN(100 * 10**6),
+      }
+    );
+
+    expect(await rentToken.getRentDueTimestamp()).to.be.bignumber.greaterThan(oldRentDueTimestamp);
+    expect(await usdcMock.balanceOf(rentToken.address)).to.be.bignumber.equal(new BN(200 * 10**6));
+    expect(await rentToken.showUnclaimed({ from: houseOwnerAddress })).to.be.bignumber.equal(new BN(34 * 10**6));
+    expect(await rentToken.showUnclaimed({ from: otherAddress })).to.be.bignumber.equal(new BN(99 * 10**6));
+    expect(await rentToken.showUnclaimed({ from: anotherAddress })).to.be.bignumber.equal(new BN(67 * 10**6));
   });
 });
